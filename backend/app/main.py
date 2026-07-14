@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.database import create_tables
-from app.routers import ministries, schemes, sources
+from app.routers import crawler, ministries, schemes, sources
 
 settings = get_settings()
 
@@ -45,6 +45,7 @@ app.add_middleware(
 app.include_router(ministries.router, prefix="/api/v1/ministries", tags=["Ministries"])
 app.include_router(sources.router, prefix="/api/v1/sources", tags=["Sources"])
 app.include_router(schemes.router, prefix="/api/v1/schemes", tags=["Schemes"])
+app.include_router(crawler.router, prefix="/api/v1/crawler", tags=["Crawler"])
 
 
 @app.get("/", tags=["Health"])
