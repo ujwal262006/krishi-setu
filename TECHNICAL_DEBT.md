@@ -1,44 +1,95 @@
 # Technical Debt — Krishi Setu
 
-## 1. Crawler runs in background thread, not Celery
-Current: background thread via FastAPI BackgroundTasks (dev-only pattern).
-Future: replace with Celery + Redis worker for production.
-Risk: if the FastAPI process restarts, running crawl jobs are lost.
+Items identified during prototype development that require resolution before production hardening.
+
+## 1. Crawler uses in-process background execution instead of Celery
+
+Current: crawl jobs are scheduled using FastAPI BackgroundTasks. Each crawl creates an independent SQLAlchemy session and executes within the FastAPI application process.
+
+Future: replace FastAPI BackgroundTasks execution with dedicated Celery workers using Redis as the message broker.
+
+Risk: running crawl jobs can be interrupted if the FastAPI application process restarts, crashes, or is redeployed.
+
 Target: Week 3 scalability hardening.
 
-## 2. HTML scheme extraction is heuristic-only
-Current: keyword counting to detect scheme pages, first H1 as title.
-Future: LLM-assisted structured extraction (Gemini) to parse eligibility
-criteria and benefits into structured JSON automatically.
-Risk: low-quality scheme data from crawled pages vs. seeded data.
+## 2. Improve HTML scheme candidate detection
 
-## 3. No Celery worker yet
-Current: jobs table exists, Celery dependency installed, but no worker process.
-Future: celery worker -A app.celery_app --loglevel=info
-Target: Week 3.
+Current: HTML scheme detection uses heuristic keyword matching and page structure analysis.
 
-## 4. No scheduled crawling yet
-Current: crawl is manual-trigger only via POST /api/v1/crawler/trigger/{source_id}.
-Future: APScheduler or Celery Beat reading next_crawl_at from sources table.
-Target: Day 4/5.
+Future: improve deterministic candidate classification and structured field extraction, with optional Gemini-assisted enrichment for ambiguous content.
 
-## 5. No authentication on API endpoints
-Current: all endpoints are open — no API key or JWT auth.
-Future: JWT auth for farmer-facing endpoints, API key for admin endpoints.
-Target: Week 2 (farmer profile + auth).
+Risk: generic government portal pages may be incorrectly classified as agricultural schemes.
 
-## 6. search_synonyms JSON cast search is not full-text
-Current: cast(search_synonyms, Text) LIKE '%query%' — works but slow at scale.
-Future: PostgreSQL full-text search with pg_trgm extension and GIN index.
+Target: Week 2 crawler and AI hardening.
+
+## 3. Celery worker infrastructure is not yet configured
+
+Current: Celery and Redis dependencies are installed and database job tracking is available, but no dedicated worker process is running.
+
+Future: configure Celery application, Redis broker, worker process, and crawl task dispatch.
+
+Target: Week 3 scalability hardening.
+
+## 4. Scheduled crawling is not yet implemented
+
+Current: crawl jobs are triggered manually through the crawler API.
+
+Future: implement scheduled crawling based on next_crawl_at, crawl_interval_hours, and per-source configuration stored in the database.
+
+Target: Week 1 crawler hardening.
+
+## 5. API authentication and authorization are not yet implemented
+
+Current: development API endpoints are accessible without authentication.
+
+Future: implement JWT-based farmer authentication and protect administrative crawler and data-management endpoints.
+
 Target: Week 2.
 
-## 7. Crawled scheme data lacks structured eligibility criteria
-Current: crawled schemes have empty eligibility_criteria and benefits JSON.
-Future: Gemini-assisted post-processing to extract structured fields from
-raw description text.
-Target: Week 2 AI assistant phase.
+## 6. Scheme synonym search is not optimized for scale
 
-## 8. No error recovery for failed crawl jobs
-Current: failed jobs stay in FAILED status with last_error set.
-Future: retry logic with exponential backoff, dead-letter queue.
-Target: Week 3.
+Current: search_synonyms JSON content is cast to text and matched using case-insensitive pattern search.
+
+Future: implement PostgreSQL full-text and trigram-based search with appropriate GIN/GiST indexing.
+
+Risk: current search approach may become inefficient as the scheme dataset grows.
+
+Target: Week 2 search hardening.
+
+## 7. Crawled scheme records lack structured eligibility data
+
+Current: automatically discovered scheme records may contain unstructured descriptions with empty or incomplete eligibility_criteria and benefits fields.
+
+Future: implement structured extraction and validation of eligibility criteria and benefit information before records are used by the eligibility engine.
+
+Target: Week 2.
+
+## 8. Crawl job retry and failure recovery require hardening
+
+Current: failed crawl jobs retain failure status and error information.
+
+Future: implement controlled retry logic with exponential backoff, maximum retry limits, and dead-letter handling for permanently failed jobs.
+
+Target: Week 3 scalability hardening.
+
+## 9. Multi-format extractor validation coverage is incomplete
+
+Current: HTML crawling has been validated against a live government source. PDF, OCR, CSV, JSON, XLSX, DOCX, and XML extractors are implemented but require dedicated format-specific integration testing.
+
+Future: create representative extractor fixtures and automated tests for each supported ingestion format.
+
+Target: Week 1/2 crawler hardening.
+
+## 10. Duplicate crawl trigger endpoint removed
+
+Previously: POST /api/v1/sources/{source_id}/crawl created a QUEUED job but did not execute the crawler.
+Now: single execution path via POST /api/v1/crawler/trigger/{source_id}.
+The sources router now only handles CRUD and job listing.
+
+## 11. Duplicate job prevention race condition
+
+Current: duplicate prevention checks QUEUED + RUNNING states, which reduces but does not fully eliminate race conditions under concurrent requests.
+
+Future: enforce job concurrency at the database level using a unique partial index or distributed lock (e.g. Redis SETNX).
+
+Target: Week 3 scalability hardening.

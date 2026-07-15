@@ -8,10 +8,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.models import CrawlJob, CrawlJobStatus, CrawlJobType, Source
+from app.models.models import CrawlJob, Source
 from app.schemas.crawler import (
     CrawlJobResponse,
-    CrawlJobTrigger,
     SourceCreate,
     SourceResponse,
     SourceUpdate,
@@ -99,47 +98,25 @@ def delete_source(
     db.commit()
 
 
-@router.post("/{source_id}/crawl", response_model=CrawlJobResponse, status_code=status.HTTP_202_ACCEPTED)
-def trigger_crawl(
+@router.get("/{source_id}/jobs", response_model=List[CrawlJobResponse])
+def list_crawl_jobs(
     source_id: int,
+    limit: int = 20,
     db: Session = Depends(get_db),
-) -> CrawlJob:
+) -> List[CrawlJob]:
     source = db.query(Source).filter(Source.id == source_id).first()
     if not source:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Source {source_id} not found",
         )
-    if not source.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Source is inactive — activate it before triggering a crawl",
-        )
-
-    # Check for already-running job on this source
-    running = (
+    return (
         db.query(CrawlJob)
-        .filter(
-            CrawlJob.source_id == source_id,
-            CrawlJob.status == CrawlJobStatus.RUNNING,
-        )
-        .first()
+        .filter(CrawlJob.source_id == source_id)
+        .order_by(CrawlJob.created_at.desc())
+        .limit(limit)
+        .all()
     )
-    if running:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Crawl job {running.id} is already running for this source",
-        )
-
-    job = CrawlJob(
-        source_id=source_id,
-        status=CrawlJobStatus.QUEUED,
-        job_type=CrawlJobType.MANUAL,
-    )
-    db.add(job)
-    db.commit()
-    db.refresh(job)
-    return job
 
 
 @router.get("/{source_id}/jobs", response_model=List[CrawlJobResponse])

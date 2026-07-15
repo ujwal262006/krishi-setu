@@ -128,35 +128,69 @@ def extract_scheme_data_from_html(
     """
     Extract scheme data from an HTML page.
     Returns a dict if scheme data is detected, None otherwise.
-    Heuristic: pages with keywords like 'eligibility', 'scheme', 'benefit'
-    are likely scheme pages.
+    Filters out navigation, footer, form, and utility pages.
     """
     soup = BeautifulSoup(html, "html.parser")
 
-    # Remove script/style tags
-    for tag in soup(["script", "style", "nav", "footer", "header"]):
+    # Remove boilerplate elements before any analysis
+    for tag in soup(["script", "style", "nav", "footer", "header", "form"]):
         tag.decompose()
 
     text = soup.get_text(separator=" ", strip=True)
 
-    # Heuristic: check if this looks like a scheme page
-    scheme_keywords = [
-        "eligibility", "benefit", "scheme", "yojana", "subsidy",
-        "farmer", "kisan", "application", "apply", "criteria",
+    # ── Negative filter — skip known non-scheme page patterns ──────────────────
+    # Check URL patterns first (fast rejection)
+    url_lower = url.lower()
+    skip_url_patterns = [
+        "/privacy", "/disclaimer", "/terms", "/contact", "/grievance",
+        "/feedback", "/sitemap", "/login", "/register", "/signup",
+        "/search", "/404", "/error", "/faq", "/help", "/about",
+        "/social", "/media", "/video", "/gallery", "/download",
+        "/screen-reader", "/accessibility", "/archive",
     ]
-    keyword_count = sum(1 for kw in scheme_keywords if kw.lower() in text.lower())
-    if keyword_count < 2:
+    if any(pattern in url_lower for pattern in skip_url_patterns):
         return None
 
-    # Extract title
-    title = None
-    for tag in ["h1", "h2", "title"]:
-        el = soup.find(tag)
-        if el and el.get_text(strip=True):
-            title = el.get_text(strip=True)[:500]
-            break
+    # ── Skip pages with very little meaningful content ─────────────────────────
+    words = text.split()
+    if len(words) < 100:
+        return None
 
-    if not title:
+    # ── Negative keyword filter — skip utility/navigation pages ────────────────
+    title_el = soup.find("title") or soup.find("h1")
+    title_text = title_el.get_text(strip=True).lower() if title_el else ""
+
+    skip_title_patterns = [
+        "privacy policy", "disclaimer", "terms and condition",
+        "contact us", "grievance", "feedback", "sitemap",
+        "screen reader", "social media", "videos", "back",
+        "registration form", "login", "sign in", "404",
+        "beneficiary status", "voluntary surrender",
+    ]
+    if any(pattern in title_text for pattern in skip_title_patterns):
+        return None
+
+    # ── Positive filter — must have meaningful scheme content ──────────────────
+    scheme_keywords = [
+        "eligibility", "benefit", "scheme", "yojana", "subsidy",
+        "farmer", "kisan", "apply", "criteria", "assistance",
+        "grant", "loan", "pension", "insurance", "support",
+    ]
+    keyword_count = sum(1 for kw in scheme_keywords if kw.lower() in text.lower())
+    if keyword_count < 3:
+        return None
+
+    # ── Extract best available title ───────────────────────────────────────────
+    title = None
+    for tag_name in ["h1", "h2", "title"]:
+        el = soup.find(tag_name)
+        if el:
+            candidate = el.get_text(strip=True)
+            if candidate and len(candidate) > 5:
+                title = candidate[:500]
+                break
+
+    if not title or len(title) < 10:
         return None
 
     # Content hash for change detection
@@ -174,7 +208,6 @@ def extract_scheme_data_from_html(
         "eligibility_criteria": {},
         "benefits": {},
     }
-
 
 # ─── Core Crawl Function ──────────────────────────────────────────────────────
 

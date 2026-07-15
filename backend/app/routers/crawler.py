@@ -4,7 +4,6 @@ Crawl jobs are queued — not blocking.
 Actual crawling runs in background (Celery in production, thread in dev).
 """
 
-import threading
 from typing import List
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
@@ -68,19 +67,22 @@ def trigger_crawl(
             detail="Source is inactive",
         )
 
-    # Prevent duplicate running jobs
-    running = (
+    # Prevent duplicate queued or running jobs
+    active_job = (
         db.query(CrawlJob)
         .filter(
             CrawlJob.source_id == source_id,
-            CrawlJob.status == CrawlJobStatus.RUNNING,
+            CrawlJob.status.in_([
+                CrawlJobStatus.QUEUED,
+                CrawlJobStatus.RUNNING,
+            ]),
         )
         .first()
     )
-    if running:
+    if active_job:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Crawl job {running.id} is already running for this source",
+            detail=f"Crawl job {active_job.id} is already queued or running for source {source_id}",
         )
 
     job = CrawlJob(
@@ -102,7 +104,7 @@ def trigger_crawl(
 def list_all_jobs(
     skip: int = 0,
     limit: int = 20,
-    status_filter: str | None = None,
+    status_filter: CrawlJobStatus | None = None,
     db: Session = Depends(get_db),
 ) -> List[CrawlJob]:
     """List all crawl jobs across all sources."""
