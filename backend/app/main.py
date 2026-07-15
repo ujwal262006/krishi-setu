@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.database import create_tables
 from app.routers import crawler, ministries, schemes, sources
+from app.scheduler import start_scheduler, stop_scheduler
 
 settings = get_settings()
 
@@ -19,10 +20,11 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Run startup tasks before serving requests."""
-    # Only create tables in dev — production uses Alembic migrations
     if settings.APP_ENV == "development":
         create_tables()
+    start_scheduler()
     yield
+    stop_scheduler()
 
 
 app = FastAPI(
