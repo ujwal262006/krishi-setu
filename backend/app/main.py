@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.database import create_tables
-from app.routers import crawler, eligibility, farmers, ministries, schemes, sources
+from app.routers import assistant, crawler, eligibility, farmers, ministries, schemes, sources
 from app.scheduler import start_scheduler, stop_scheduler
 
 settings = get_settings()
@@ -50,7 +50,7 @@ app.include_router(schemes.router, prefix="/api/v1/schemes", tags=["Schemes"])
 app.include_router(crawler.router, prefix="/api/v1/crawler", tags=["Crawler"])
 app.include_router(farmers.router, prefix="/api/v1/farmers", tags=["Farmers"])
 app.include_router(eligibility.router, prefix="/api/v1/eligibility", tags=["Eligibility"])
-
+app.include_router(assistant.router, prefix="/api/v1/assistant", tags=["AI Assistant"])
 
 @app.get("/", tags=["Health"])
 def root() -> dict[str, str]:

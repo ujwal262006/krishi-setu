@@ -3,7 +3,7 @@ Farmer profile registration, login, and profile management.
 JWT-protected endpoints for authenticated farmers.
 """
 
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -61,6 +61,25 @@ def get_current_farmer(
             detail="Farmer account not found or inactive",
         )
 
+    return farmer
+
+def get_current_farmer_optional(
+    db: Session = Depends(get_db),
+    credentials: Annotated[Optional[HTTPAuthorizationCredentials], Depends(HTTPBearer(auto_error=False))] = None,
+) -> Optional[FarmerProfile]:
+    """Same as get_current_farmer but returns None instead of 401 for unauthenticated requests."""
+    if not credentials:
+        return None
+    token = credentials.credentials
+    payload = decode_access_token(token)
+    if not payload:
+        return None
+    farmer_id: int | None = payload.get("farmer_id")
+    if farmer_id is None:
+        return None
+    farmer = get_farmer_by_id(db, farmer_id)
+    if not farmer or not farmer.is_active:
+        return None
     return farmer
 
 
