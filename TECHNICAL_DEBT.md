@@ -115,3 +115,21 @@ The GET /eligibility/my-results endpoint is therefore "latest saved results" not
 Future: if full audit history is required, add an append-only eligibility_audit_log table alongside the current upsert table.
 
 Target: Week 2 if required by product scope.
+
+## 14. Retrieval uses LIKE-based search, not semantic search
+
+Current: scheme retrieval uses ILIKE pattern matching with JSON synonym search and word-level fallback.
+
+Future: PostgreSQL Full Text Search (pg_trgm / GIN index) or embedding-based semantic retrieval for better recall and ranking.
+
+Target: Week 2.
+
+## 15. LLM output is not post-validated against retrieved schemes
+
+Current: system prompt instructs Gemini to only reference retrieved schemes. Anti-hallucination is enforced at the prompt level only.
+
+Risk: model could still accidentally mention scheme names outside the retrieved context.
+
+Future: extract referenced scheme names from the Gemini response and verify every name exists in the retrieved context before returning the answer to the user.
+
+Target: Week 2.
