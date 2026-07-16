@@ -93,3 +93,25 @@ Current: duplicate prevention checks QUEUED + RUNNING states, which reduces but 
 Future: enforce job concurrency at the database level using a unique partial index or distributed lock (e.g. Redis SETNX).
 
 Target: Week 3 scalability hardening.
+
+## 12. Eligibility evaluation cannot fully resolve scheme exclusion categories
+
+Current: the deterministic eligibility engine evaluates criteria available in the farmer profile, including land holding, caste, income, age, state, BPL status, gender, and occupation-related rules.
+
+Some schemes, including PM-KISAN, define exclusion categories such as income-tax payer status, government employment, constitutional posts, institutional land ownership, and professional categories. These fields are not currently represented in the farmer profile schema. The exclusion check therefore returns N/A, while the overall result may still appear MET based on evaluated fields alone.
+
+Risk: schemes with unresolved exclusion criteria may receive an overall MET result while additional manual verification is still required from the farmer.
+
+Future: extend farmer profile attributes for common exclusion criteria and make overall eligibility aggregation conservative when required criterion data is unavailable.
+
+Target: Week 2 eligibility hardening.
+
+## 13. Eligibility records represent latest state, not full history
+
+Current: eligibility_records table uses a UNIQUE (farmer_id, scheme_id) constraint with upsert logic. Each check overwrites the previous result for the same farmer-scheme pair.
+
+The GET /eligibility/my-results endpoint is therefore "latest saved results" not a complete audit history.
+
+Future: if full audit history is required, add an append-only eligibility_audit_log table alongside the current upsert table.
+
+Target: Week 2 if required by product scope.
