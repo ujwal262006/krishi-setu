@@ -22,8 +22,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Run startup tasks before serving requests."""
     if settings.APP_ENV == "development":
         create_tables()
-    start_scheduler()
+
+    # Start APScheduler as fallback if Celery Beat is not running
+    # In production, Celery Beat handles scheduling
+    try:
+        from app.celery_app import celery_app
+        # Test Redis connection
+        celery_app.control.ping(timeout=1)
+        print("[startup] Celery/Redis available — scheduling handled by Celery Beat")
+    except Exception:
+        print("[startup] Celery/Redis unavailable — starting APScheduler fallback")
+        from app.scheduler import start_scheduler
+        start_scheduler()
+
     yield
+
+    from app.scheduler import stop_scheduler
     stop_scheduler()
 
 

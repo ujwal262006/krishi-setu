@@ -1,7 +1,7 @@
 """
 Crawler API endpoints.
-Crawl jobs are queued — not blocking.
-Actual crawling runs in background (Celery in production, thread in dev).
+Crawl jobs dispatched via Celery tasks — not BackgroundTasks.
+Falls back to BackgroundTasks if Celery/Redis is unavailable (dev mode).
 """
 
 from typing import List
@@ -12,33 +12,22 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.models import CrawlJob, CrawlJobStatus, CrawlJobType, Source
 from app.schemas.crawler import CrawlJobResponse
-from app.services.crawler import crawl_source
 
 router = APIRouter()
 
 
-def _run_crawl_in_background(source_id: int, job_id: int) -> None:
+def _dispatch_crawl(source_id: int, job_id: int, background_tasks: BackgroundTasks) -> None:
     """
-    Run crawl in a background thread for development.
-    In production this is replaced by a Celery task.
+    Try to dispatch via Celery. Fall back to BackgroundTasks if Redis unavailable.
+    This pattern allows the app to run in dev without Redis running.
     """
-    from app.database import SessionLocal
-    db = SessionLocal()
     try:
-        source = db.query(Source).filter(Source.id == source_id).first()
-        job = db.query(CrawlJob).filter(CrawlJob.id == job_id).first()
-        if source and job:
-            crawl_source(source, job, db)
-    except Exception as e:
-        # Mark job as failed
-        job = db.query(CrawlJob).filter(CrawlJob.id == job_id).first()
-        if job:
-            job.status = CrawlJobStatus.FAILED
-            job.last_error = str(e)
-            db.commit()
-        print(f"[crawl] Background task failed: {e}")
-    finally:
-        db.close()
+        from app.tasks import crawl_source_task
+        crawl_source_task.delay(source_id, job_id)
+    except Exception:
+        # Redis/Celery not available — fall back to background thread (dev only)
+        from app.routers._crawler_bg import run_crawl_background
+        background_tasks.add_task(run_crawl_background, source_id, job_id)
 
 
 @router.post(
@@ -53,7 +42,7 @@ def trigger_crawl(
 ) -> CrawlJob:
     """
     Trigger a manual crawl for a source.
-    Returns immediately with the queued job — crawl runs in background.
+    Dispatches to Celery if available, falls back to background thread in dev.
     """
     source = db.query(Source).filter(Source.id == source_id).first()
     if not source:
@@ -67,7 +56,6 @@ def trigger_crawl(
             detail="Source is inactive",
         )
 
-    # Prevent duplicate queued or running jobs
     active_job = (
         db.query(CrawlJob)
         .filter(
@@ -94,8 +82,7 @@ def trigger_crawl(
     db.commit()
     db.refresh(job)
 
-    # Run in background — non-blocking
-    background_tasks.add_task(_run_crawl_in_background, source_id, job.id)
+    _dispatch_crawl(source_id, job.id, background_tasks)
 
     return job
 
@@ -107,7 +94,6 @@ def list_all_jobs(
     status_filter: CrawlJobStatus | None = None,
     db: Session = Depends(get_db),
 ) -> List[CrawlJob]:
-    """List all crawl jobs across all sources."""
     query = db.query(CrawlJob)
     if status_filter:
         query = query.filter(CrawlJob.status == status_filter)
@@ -124,7 +110,6 @@ def get_job(
     job_id: int,
     db: Session = Depends(get_db),
 ) -> CrawlJob:
-    """Get a specific crawl job by ID."""
     job = db.query(CrawlJob).filter(CrawlJob.id == job_id).first()
     if not job:
         raise HTTPException(
