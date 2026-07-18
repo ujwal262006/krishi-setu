@@ -4,6 +4,9 @@ AI-driven Digital Public Infrastructure platform that helps Indian farmers disco
 
 ---
 
+**Live API:** https://krishi-setu-api.onrender.com  
+**API Docs:** https://krishi-setu-api.onrender.com/docs
+
 ## Tech Stack
 
 - **Backend:** Python 3.13, FastAPI, SQLAlchemy ORM, Alembic migrations
@@ -183,8 +186,8 @@ See `TECHNICAL_DEBT.md` for the complete list. Key items:
 ## Deliverables
 
 - [x] GitHub repository (private) — shared with yuvi673758@gmail.com
-- [ ] Working prototype deployed (backend + frontend) — Week 3
+- [x] Working prototype deployed (backend) — https://krishi-setu-api.onrender.com
 - [x] Database schema SQL file — `schema.sql`
 - [x] Alembic migrations — `backend/migrations/`
-- [ ] README — this file
+- [x] README — this file
 - [ ] Loom walkthrough — Week 3 

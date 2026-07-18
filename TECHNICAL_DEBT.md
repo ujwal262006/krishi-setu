@@ -133,3 +133,19 @@ Risk: model could still accidentally mention scheme names outside the retrieved 
 Future: extract referenced scheme names from the Gemini response and verify every name exists in the retrieved context before returning the answer to the user.
 
 Target: Week 2.
+
+## 16. Admin endpoints require authentication
+
+Current: all /api/v1/admin/* endpoints are publicly accessible without any authentication.
+
+Future: protect admin endpoints with either a static API key (X-Admin-Key header) or a separate admin JWT role claim. Must be implemented before any public deployment.
+
+Target: before production deployment.
+
+## 17. README should stay implementation-synchronized
+
+Current: documentation may temporarily describe planned production deployment components before they are fully configured.
+
+Future: update README immediately whenever deployment architecture changes — specifically the deployment section and deliverables checklist.
+
+Target: before final submission.
