@@ -143,7 +143,6 @@ PyJWT==2.10.1
 pymupdf==1.28.0
 pyparsing==3.3.2
 pypdfium2==5.11.0
-pypiwin32==223
 PySocks==1.7.1
 pytesseract==0.3.13
 pytest==9.0.3
@@ -154,7 +153,6 @@ python-jose==3.5.0
 python-multipart==0.0.32
 pyttsx3==2.99
 pytz==2025.2
-pywin32==311
 PyYAML==6.0.3
 react==4.3.0
 redis==8.0.1
