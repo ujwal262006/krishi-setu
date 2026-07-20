@@ -149,3 +149,17 @@ Current: documentation may temporarily describe planned production deployment co
 Future: update README immediately whenever deployment architecture changes — specifically the deployment section and deliverables checklist.
 
 Target: before final submission.
+
+## 18. Gemini model name pinned to unstable version alias
+
+Issue found during production handover testing: `gemini-2.5-flash` became unavailable
+for the API key in production even though it worked in local development, causing
+the AI assistant to fail with a 404 error.
+
+Fix applied: switched to `gemini-flash-latest`, Google's stable rolling alias, which
+automatically points to the latest available Flash model and is less likely to be
+deprecated without notice.
+
+Future: monitor Google's model deprecation announcements and re-verify the model
+alias periodically, since "latest" aliases can still shift underlying model behavior
+over time without code changes.
