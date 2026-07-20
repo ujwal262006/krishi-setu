@@ -24,7 +24,7 @@ settings = get_settings()
 
 # ── Gemini client — API key from env, never hardcoded ─────────────────────────
 _client = genai.Client(api_key=settings.GEMINI_API_KEY)
-MODEL = "gemini-2.5-flash"
+MODEL = "gemini-flash-latest"
 
 
 # ── Scheme retrieval ───────────────────────────────────────────────────────────
