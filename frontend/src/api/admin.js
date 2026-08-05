@@ -16,11 +16,9 @@ export const createSourceAdmin = (data) => api.post('/admin/sources', data)
 export const updateSourceAdmin = (id, data) => api.patch(`/admin/sources/${id}`, data)
 export const deleteSourceAdmin = (id) => api.delete(`/admin/sources/${id}`)
 
-// Ministries (admin - list + create)
+// Ministries
 export const listMinistriesAdmin = () => api.get('/admin/ministries')
 export const createMinistryAdmin = (data) => api.post('/admin/ministries', data)
-
-// Ministries (dedicated router - update + delete)
 export const updateMinistry = (id, data) => api.patch(`/ministries/${id}`, data)
 export const deleteMinistry = (id) => api.delete(`/ministries/${id}`)
 
@@ -28,6 +26,8 @@ export const deleteMinistry = (id) => api.delete(`/ministries/${id}`)
 export const listFarmersAdmin = (params) => api.get('/admin/farmers', { params })
 export const listCrawlJobsAdmin = (params) => api.get('/admin/crawl-jobs', { params })
 export const triggerCrawlAdmin = (sourceId) => api.post(`/admin/crawl-jobs/trigger/${sourceId}`)
+export const getCrawlJobDetail = (jobId) => api.get(`/crawler/jobs/${jobId}`)
+export const getSourceJobs = (sourceId) => api.get(`/sources/${sourceId}/jobs`)
 
 // Search logs
 export const listSearchLogsAdmin = (params) => api.get('/admin/search-logs', { params })

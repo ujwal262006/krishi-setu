@@ -6,7 +6,6 @@ export const askAssistant = (query, sessionId) =>
 export const searchAssistantPublic = (q, limit = 5) =>
   api.get('/assistant/search', { params: { q, limit } })
 
-// Streaming — fetch API use karte hain kyunki axios streaming ke liye ideal nahi hai
 export async function streamAssistantQuery(query, sessionId, onChunk) {
   const baseUrl = import.meta.env.VITE_API_BASE_URL
   const params = new URLSearchParams({ q: query })

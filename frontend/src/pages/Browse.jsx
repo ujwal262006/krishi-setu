@@ -1,12 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { listSchemes, searchSchemes } from '../api/schemes'
+import { searchAssistantPublic } from '../api/assistant'
 
 export default function Browse() {
   const [schemes, setSchemes] = useState([])
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [suggestions, setSuggestions] = useState([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const debounceRef = useRef(null)
 
   const loadDefaultSchemes = async () => {
     setLoading(true)
@@ -25,8 +29,27 @@ export default function Browse() {
     loadDefaultSchemes()
   }, [])
 
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (!query.trim() || query.trim().length < 2) {
+      setSuggestions([])
+      return
+    }
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await searchAssistantPublic(query, 5)
+        setSuggestions(res.data.results)
+        setShowSuggestions(true)
+      } catch (err) {
+        setSuggestions([])
+      }
+    }, 300)
+    return () => clearTimeout(debounceRef.current)
+  }, [query])
+
   const handleSearch = async (e) => {
     e.preventDefault()
+    setShowSuggestions(false)
     if (!query.trim()) {
       loadDefaultSchemes()
       return
@@ -47,20 +70,39 @@ export default function Browse() {
     <div className="max-w-5xl mx-auto p-4">
       <h1 className="text-2xl font-bold text-green-800 mb-4">Browse Schemes</h1>
 
-      <form onSubmit={handleSearch} className="flex gap-2 mb-6">
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search e.g. tractor ke liye paisa"
-          className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-        />
-        <button
-          type="submit"
-          className="bg-green-700 text-white px-5 py-2 rounded-lg font-medium hover:bg-green-800"
-        >
-          Search
-        </button>
+      <form onSubmit={handleSearch} className="relative mb-6">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => query.trim().length >= 2 && setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+            placeholder="Search e.g. tractor ke liye paisa"
+            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+          <button
+            type="submit"
+            className="bg-green-700 text-white px-5 py-2 rounded-lg font-medium hover:bg-green-800"
+          >
+            Search
+          </button>
+        </div>
+
+        {showSuggestions && suggestions.length > 0 && (
+          <div className="absolute z-10 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-md overflow-hidden">
+            {suggestions.map((s) => (
+              <Link
+                key={s.id}
+                to={`/schemes/${s.id}`}
+                className="block px-4 py-2 text-sm hover:bg-green-50 border-b border-gray-50 last:border-0"
+              >
+                <span className="font-medium text-gray-800">{s.name}</span>
+                {s.name_hindi && <span className="text-gray-400 text-xs ml-2">{s.name_hindi}</span>}
+              </Link>
+            ))}
+          </div>
+        )}
       </form>
 
       {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
