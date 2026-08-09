@@ -5,7 +5,8 @@ AI-driven Digital Public Infrastructure platform that helps Indian farmers disco
 ---
 
 **Live API:** https://krishi-setu-api.onrender.com  
-**API Docs:** https://krishi-setu-api.onrender.com/docs
+**API Docs:** https://krishi-setu-api.onrender.com/docs  
+**Live Frontend:** _(to be added after deployment)_
 
 ## Tech Stack
 
@@ -16,8 +17,8 @@ AI-driven Digital Public Infrastructure platform that helps Indian farmers disco
 - **Task Queue:** Celery + Redis (Upstash)
 - **Scheduler:** Celery Beat (APScheduler fallback in dev)
 - **Auth:** JWT (python-jose) + bcrypt password hashing
-- **Frontend:** React.js + Vite PWA (Week 3)
-- **Hosting:** Backend on Render, Frontend on Vercel (Week 3)
+- **Frontend:** React.js + Vite PWA, Tailwind CSS v4
+- **Hosting:** Backend on Render, Frontend on Vercel
 
 ---
 
@@ -72,6 +73,29 @@ python -m celery -A app.celery_app worker --loglevel=info --pool=solo
 ```bash
 python -m celery -A app.celery_app beat --loglevel=info
 ```
+
+---
+
+## Frontend Setup
+
+```bash
+cd frontend
+npm install
+```
+
+Create `frontend/.env`:
+
+VITE_API_BASE_URL=http://localhost:8000/api/v1
+VITE_ADMIN_PASSWORD=<choose-a-password>
+
+
+Run:
+
+```bash
+npm run dev
+```
+
+Frontend runs at `http://localhost:5173`. Full frontend documentation (routes, structure, PWA testing) is in `frontend/README.md`.
 
 ---
 
@@ -177,17 +201,6 @@ See `TECHNICAL_DEBT.md` for the complete list. Key items:
 1. **Celery worker must run separately** — crawl jobs fail silently if no worker is running. Production Render deployment needs a separate worker dyno.
 2. **HTML scheme extraction is heuristic** — crawled pages use keyword detection, not structured extraction. Seeded schemes have complete eligibility data; crawled ones may have empty criteria.
 3. **Eligibility exclusion categories** — PM-KISAN and similar schemes have exclusions (income tax payers, govt employees) that cannot be evaluated since farmer profiles don't capture these fields. Overall result may show MET while manual verification is still needed.
-4. **No admin authentication** — admin endpoints are currently unprotected. Production deployment needs API key or role-based auth before exposing publicly.
+4. **No admin authentication** — admin endpoints are currently unprotected. Production deployment needs API key or role-based auth before exposing publicly. The frontend adds a password gate on `/admin`, `/crawler`, `/master` routes as a stopgap, but this only prevents accidental UI access — it does not secure the underlying API.
 5. **Retrieval uses LIKE search** — not semantic/embedding-based. Works well with synonyms but won't handle spelling variations or deep semantic similarity.
 6. **LLM output not post-validated** — anti-hallucination is prompt-level only. A future improvement would verify every scheme name in the Gemini response against the retrieved set.
-
----
-
-## Deliverables
-
-- [x] GitHub repository (private) — shared with yuvi673758@gmail.com
-- [x] Working prototype deployed (backend) — https://krishi-setu-api.onrender.com
-- [x] Database schema SQL file — `schema.sql`
-- [x] Alembic migrations — `backend/migrations/`
-- [x] README — this file
-- [ ] Loom walkthrough — Week 3 
