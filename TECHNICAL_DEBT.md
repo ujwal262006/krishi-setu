@@ -163,3 +163,44 @@ deprecated without notice.
 Future: monitor Google's model deprecation announcements and re-verify the model
 alias periodically, since "latest" aliases can still shift underlying model behavior
 over time without code changes.
+
+## 19. Celery worker embedded in web process (free-tier workaround)
+
+Current: due to Render's free tier not offering Background Worker services,
+the Celery worker is started as a background thread inside the main FastAPI
+web process (app/main.py lifespan) rather than as a separate process/service.
+
+Risk: this couples worker load to the API process — a long-running or CPU-heavy
+crawl task can compete for resources with incoming API requests on the same
+free-tier dyno, and if the web service restarts/redeploys, in-flight crawl
+tasks are interrupted.
+
+Future: move to a dedicated, separately-scaled Celery worker (paid Render
+Background Worker, or a free-tier alternative like Railway/Fly.io) once
+budget allows, decoupling worker execution from API request handling.
+
+Target: before any real production load beyond internal demo/testing.
+
+## 21. Two government sources (agricoop.nic.in, rural.nic.in) unreachable from crawler
+
+Sources 2 (Agriculture Ministry Schemes Portal) and 4 (Rural Development
+Ministry) consistently fail to fetch even their base URL — both locally
+(Day 4, DNS resolution failure) and in production on Render (0 URLs crawled
+despite 1 discovered, no HTTP error captured — see debt item #20 for why
+the error itself isn't visible).
+
+Likely cause: NIC-hosted (.nic.in) government domains are known to have
+inconsistent DNS availability and commonly block or rate-limit traffic from
+cloud provider IP ranges (AWS, Render, etc.) as a basic anti-bot measure.
+
+This is an external network/infrastructure limitation of the target sites,
+not a defect in the crawler itself — source 5 (Jal Jeevan Mission Portal)
+and source 1 (PM-KISAN) both crawl successfully (132+ and 41+ URLs
+respectively), confirming the crawler logic works correctly against
+reachable targets.
+
+Future: if these two sources are required, consider crawling them via a
+scheduled job from a non-cloud IP (e.g. a residential/on-prem crawler
+worker) or contacting the ministry for an API/data-feed alternative.
+
+Target: not urgent — does not block core product functionality.
