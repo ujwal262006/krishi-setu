@@ -23,17 +23,33 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     if settings.APP_ENV == "development":
         create_tables()
 
-    # Start APScheduler as fallback if Celery Beat is not running
-    # In production, Celery Beat handles scheduling
-    try:
-        from app.celery_app import celery_app
-        # Test Redis connection
-        celery_app.control.ping(timeout=1)
-        print("[startup] Celery/Redis available — scheduling handled by Celery Beat")
-    except Exception:
-        print("[startup] Celery/Redis unavailable — starting APScheduler fallback")
-        from app.scheduler import start_scheduler
-        start_scheduler()
+    # Embed a Celery worker in this same web process, in a background
+    # thread. This is a free-tier workaround so a paid, separate Render
+    # Background Worker service is not required — the free web service
+    # dyno hosts both the FastAPI app and the Celery worker together.
+    # See TECHNICAL_DEBT.md for the tradeoffs of this approach.
+    import threading
+    from app.celery_app import celery_app
+
+    def _run_embedded_worker() -> None:
+        try:
+            worker = celery_app.Worker(
+                loglevel="info",
+                pool="solo",  # safest pool for an embedded/threaded worker
+                concurrency=1,
+            )
+            worker.start()
+        except Exception as e:
+            print(f"[startup] Embedded Celery worker failed to start: {e}")
+
+    worker_thread = threading.Thread(target=_run_embedded_worker, daemon=True)
+    worker_thread.start()
+    print("[startup] Embedded Celery worker thread started")
+
+    # APScheduler still runs as the scheduling trigger (in-process, works
+    # regardless of Celery Beat availability)
+    from app.scheduler import start_scheduler
+    start_scheduler()
 
     yield
 
